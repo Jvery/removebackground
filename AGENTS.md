@@ -16,7 +16,7 @@ Run these after implementing to get immediate feedback:
 - Tests: `npm test`
 - Typecheck: `npm run typecheck` (or `npx tsc --noEmit`)
 - Lint: `npm run lint`
-- E2E: `npx playwright test`
+- E2E: `npx playwright test` (first run: `npx playwright install`)
 
 ## Frontend Validation
 
