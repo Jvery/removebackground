@@ -20,8 +20,11 @@ test.describe('removebackground', () => {
     // Check that the upload prompt is visible
     await expect(page.getByText(/drop your image here/i)).toBeVisible()
 
-    // Check that the supported formats are listed
-    await expect(page.getByText('PNG, JPEG, WebP, or GIF')).toBeVisible()
+    // Check that the supported formats are listed (displayed as individual badges)
+    await expect(page.locator('.drop-zone').getByText('PNG')).toBeVisible()
+    await expect(page.locator('.drop-zone').getByText('JPEG')).toBeVisible()
+    await expect(page.locator('.drop-zone').getByText('WebP')).toBeVisible()
+    await expect(page.locator('.drop-zone').getByText('GIF')).toBeVisible()
   })
 
   test('should have upload functionality', async ({ page }) => {

@@ -8,6 +8,7 @@
  * - Quality slider for WebP
  * - Copy to clipboard
  * - Loading state during generation
+ * - Premium visual design
  */
 
 import { useState, useCallback } from 'react'
@@ -45,6 +46,7 @@ export function DownloadButton({
   const [isExporting, setIsExporting] = useState(false)
   const [isCopying, setIsCopying] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
+  const [copySuccess, setCopySuccess] = useState(false)
 
   const handleDownload = useCallback(async () => {
     if (!blob) return
@@ -70,9 +72,13 @@ export function DownloadButton({
     if (!blob) return
 
     setIsCopying(true)
+    setCopySuccess(false)
     try {
       await copyToClipboard(blob)
+      setCopySuccess(true)
       onCopy?.()
+      // Reset success state after 2 seconds
+      setTimeout(() => setCopySuccess(false), 2000)
     } catch (error) {
       onError?.(error instanceof Error ? error.message : 'Copy failed')
     } finally {
@@ -94,18 +100,14 @@ export function DownloadButton({
           onClick={handleDownload}
           disabled={isDisabled || isExporting}
           className={`
-            flex-1 flex items-center justify-center gap-2 px-6 py-3
-            text-sm font-medium rounded-lg transition-colors
-            ${isDisabled || isExporting
-              ? 'bg-muted text-muted-foreground cursor-not-allowed'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-            }
+            btn-primary flex-1 flex items-center justify-center gap-2
+            ${isDisabled || isExporting ? 'opacity-50 cursor-not-allowed' : ''}
           `}
         >
           {isExporting ? (
             <>
               <svg
-                className="w-4 h-4 animate-spin"
+                className="w-5 h-5 animate-spin"
                 fill="none"
                 viewBox="0 0 24 24"
               >
@@ -128,7 +130,7 @@ export function DownloadButton({
           ) : (
             <>
               <svg
-                className="w-4 h-4"
+                className="w-5 h-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -152,14 +154,16 @@ export function DownloadButton({
             onClick={handleCopy}
             disabled={isDisabled || isCopying}
             className={`
-              p-3 rounded-lg transition-colors
-              ${isDisabled || isCopying
-                ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                : 'bg-muted text-foreground hover:bg-muted/80'
+              p-3 rounded-xl transition-all duration-200
+              ${copySuccess
+                ? 'bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'
+                : isDisabled || isCopying
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'bg-muted text-foreground hover:bg-muted/80 border border-transparent'
               }
             `}
-            title="Copy to clipboard"
-            aria-label="Copy to clipboard"
+            title={copySuccess ? 'Copied!' : 'Copy to clipboard'}
+            aria-label={copySuccess ? 'Copied!' : 'Copy to clipboard'}
           >
             {isCopying ? (
               <svg
@@ -179,6 +183,20 @@ export function DownloadButton({
                   className="opacity-75"
                   fill="currentColor"
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            ) : copySuccess ? (
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
                 />
               </svg>
             ) : (
@@ -204,10 +222,10 @@ export function DownloadButton({
           type="button"
           onClick={() => setShowOptions(!showOptions)}
           className={`
-            p-3 rounded-lg transition-colors
+            p-3 rounded-xl transition-all duration-200
             ${showOptions
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-foreground hover:bg-muted/80'
+              ? 'bg-primary/10 text-primary border border-primary/20'
+              : 'bg-muted text-foreground hover:bg-muted/80 border border-transparent'
             }
           `}
           title="Export options"
@@ -215,7 +233,7 @@ export function DownloadButton({
           aria-expanded={showOptions}
         >
           <svg
-            className="w-5 h-5"
+            className={`w-5 h-5 transition-transform duration-200 ${showOptions ? 'rotate-90' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -238,10 +256,10 @@ export function DownloadButton({
 
       {/* Options panel */}
       {showOptions && (
-        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+        <div className="p-4 bg-card rounded-xl border border-border space-y-4 animate-scale-in">
           {/* Format selection */}
           <div>
-            <label className="block text-sm font-medium mb-2">Format</label>
+            <label className="block text-sm font-medium mb-2 text-foreground">Format</label>
             <div className="flex gap-2">
               <FormatButton
                 format="png"
@@ -261,8 +279,8 @@ export function DownloadButton({
           {/* Quality slider (WebP only) */}
           {format === 'webp' && (
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Quality: {quality}%
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Quality: <span className="text-primary">{quality}%</span>
               </label>
               <input
                 type="range"
@@ -270,7 +288,7 @@ export function DownloadButton({
                 max={100}
                 value={quality}
                 onChange={(e) => setQuality(Number(e.target.value))}
-                className="w-full accent-primary"
+                className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
               />
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 <span>Smaller file</span>
@@ -280,11 +298,13 @@ export function DownloadButton({
           )}
 
           {/* Format info */}
-          <p className="text-xs text-muted-foreground">
-            {format === 'png'
-              ? 'PNG: Lossless compression, best for graphics and logos'
-              : 'WebP: Smaller file size, great for web use'}
-          </p>
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              {format === 'png'
+                ? 'PNG: Lossless compression, best for graphics and logos. Full transparency support.'
+                : 'WebP: Smaller file size with excellent quality. Great for web use.'}
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -305,10 +325,10 @@ function FormatButton({ format, currentFormat, onClick }: FormatButtonProps) {
       type="button"
       onClick={() => onClick(format)}
       className={`
-        px-4 py-2 text-sm font-medium rounded-lg transition-colors
+        flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
         ${isActive
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-background text-foreground hover:bg-muted'
+          ? 'bg-primary/10 text-primary border border-primary/20'
+          : 'bg-muted text-muted-foreground hover:bg-muted/80 border border-transparent'
         }
       `}
       aria-pressed={isActive}

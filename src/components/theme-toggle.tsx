@@ -33,11 +33,12 @@ export function ThemeToggle({ className = '', size = 20 }: ThemeToggleProps) {
       onClick={toggleTheme}
       className={`
         relative inline-flex items-center justify-center
-        rounded-lg p-2
+        rounded-xl p-2.5
         text-muted-foreground hover:text-foreground
-        hover:bg-muted
+        bg-card/50 hover:bg-card border border-border/50 hover:border-border
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-        transition-colors duration-200
+        transition-all duration-200 ease-out
+        hover:shadow-sm
         ${className}
       `}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}

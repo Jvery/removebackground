@@ -416,10 +416,19 @@ type ProcessingState =
 ## Phase 8: Polish & QA
 
 ### 8.1 Apply Frontend Design Skill
-- [ ] Run `/frontend-design` skill for distinctive UI
-- [ ] Avoid generic AI aesthetics
-- [ ] Ensure production-grade quality
-- [ ] Review and iterate on design
+- [x] Run `/frontend-design` skill for distinctive UI
+- [x] Avoid generic AI aesthetics (Outfit + DM Sans fonts, refined indigo/amber palette)
+- [x] Ensure production-grade quality
+- [x] Review and iterate on design
+
+**Design Choices Applied:**
+- **Typography**: Outfit (geometric display) + DM Sans (clean body)
+- **Color Palette**: Deep indigo primary (#4f46e5) with warm amber accents (#f59e0b)
+- **Visual Effects**: Gradient mesh backgrounds, noise textures, glow effects
+- **Animations**: Fade-in-up, scale-in, float, pulse-glow
+- **Drop Zone**: Premium design with corner decorations and hover glow
+- **Progress Indicator**: Circular progress with backdrop glow
+- **Privacy Badges**: Green gradient badges emphasizing client-side processing
 
 ### 8.2 Accessibility Audit
 - [ ] Run accessibility audit (`mcp__browser-tools__runAccessibilityAudit`)
@@ -517,10 +526,10 @@ type ProcessingState =
 
 After completing each phase, verify:
 
-- [x] `npm run build` succeeds (Phase 7 verified)
-- [x] `npm run test` passes (191 tests)
+- [x] `npm run build` succeeds (Phase 8.1 verified)
+- [x] `npm run test` passes (193 tests)
 - [x] `npm run lint` has no errors (only img warnings)
-- [x] `npm run e2e` passes (6 E2E tests on chromium + theme tests)
+- [x] `npm run e2e` passes (6 E2E tests on chromium)
 - [ ] Manual testing in browser works
 - [ ] No console errors
 

@@ -63,14 +63,24 @@ describe('ProgressIndicator', () => {
       expect(screen.getByText('Loading AI model...')).toBeInTheDocument()
     })
 
-    it('shows almost ready text near completion', () => {
+    it('shows preparing text during mid-loading', () => {
       render(<ProgressIndicator status="loading" progress={0.6} />)
+      expect(screen.getByText('Preparing...')).toBeInTheDocument()
+    })
+
+    it('shows almost ready text near completion', () => {
+      render(<ProgressIndicator status="loading" progress={0.95} />)
       expect(screen.getByText('Almost ready...')).toBeInTheDocument()
     })
 
-    it('shows processing text when processing', () => {
+    it('shows finishing up text when processing is nearly done', () => {
       render(<ProgressIndicator status="processing" progress={0.95} />)
-      expect(screen.getByText('Processing image...')).toBeInTheDocument()
+      expect(screen.getByText('Finishing up...')).toBeInTheDocument()
+    })
+
+    it('shows removing background text during processing', () => {
+      render(<ProgressIndicator status="processing" progress={0.5} />)
+      expect(screen.getByText('Removing background...')).toBeInTheDocument()
     })
   })
 
