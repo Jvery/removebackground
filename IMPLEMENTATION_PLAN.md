@@ -1,7 +1,7 @@
 # Background Removal Web App - Implementation Plan
 
 > **Last Updated:** 2026-01-11
-> **Status:** Phase 0 - Fixing Critical Blockers
+> **Status:** Phase 5 Complete - Export & Download Implemented
 
 ---
 
@@ -14,7 +14,7 @@
 | 2 | Image Input | COMPLETE | 3/3 |
 | 3 | Processing State | COMPLETE | 3/3 |
 | 4 | Preview System | COMPLETE | 3/3 |
-| 5 | Export/Download | NOT STARTED | 0/2 |
+| 5 | Export/Download | COMPLETE | 2/2 |
 | 6 | Integration | NOT STARTED | 0/2 |
 | 7 | Theme System | NOT STARTED | 0/2 |
 | 8 | Polish & QA | NOT STARTED | 0/3 |
@@ -342,20 +342,24 @@ type ProcessingState =
 ### 5.1 Export Utilities
 **File:** `/src/lib/export.ts`
 
-- [ ] Export to PNG (lossless)
-- [ ] Export to WebP (with quality option)
-- [ ] Copy to clipboard functionality
-- [ ] Generate download filename with timestamp
-- [ ] Add unit tests
+- [x] Export to PNG (lossless)
+- [x] Export to WebP (with quality option)
+- [x] Copy to clipboard functionality
+- [x] Generate download filename (pattern: {original}-nobg.{ext})
+- [x] Web Share API support
+- [x] Format/quality helpers
+- [x] Add unit tests (19 tests passing)
 
 ### 5.2 Download Button
 **File:** `/src/components/download-button.tsx`
 
-- [ ] Format selector (PNG/WebP)
-- [ ] Quality slider for WebP
-- [ ] Copy to clipboard button
-- [ ] Download trigger
-- [ ] Add component tests
+- [x] Format selector (PNG/WebP)
+- [x] Quality slider for WebP (50-100%)
+- [x] Copy to clipboard button
+- [x] Download trigger with loading state
+- [x] Options panel toggle
+- [x] Accessible with ARIA labels
+- [x] Add component tests (22 tests passing)
 
 ---
 
@@ -480,6 +484,8 @@ type ProcessingState =
 | `/src/components/zoomable-image.tsx` | COMPLETE | Zoom/pan image viewer |
 | `/src/components/comparison-slider.tsx` | COMPLETE | Before/after slider comparison |
 | `/src/components/image-preview.tsx` | COMPLETE | Preview container with view modes |
+| `/src/lib/export.ts` | COMPLETE | PNG/WebP export, clipboard, share API |
+| `/src/components/download-button.tsx` | COMPLETE | Format selection, quality, download UI |
 
 ---
 
@@ -493,11 +499,11 @@ type ProcessingState =
 | 3 | `/src/lib/use-processing.ts` | HIGH | COMPLETE |
 | 3 | `/src/components/progress-indicator.tsx` | HIGH | COMPLETE |
 | 3 | `/src/components/error-boundary.tsx` | HIGH | COMPLETE |
-| 4 | `/src/components/zoomable-image.tsx` | HIGH | PENDING |
-| 4 | `/src/components/comparison-slider.tsx` | HIGH | PENDING |
-| 4 | `/src/components/image-preview.tsx` | HIGH | PENDING |
-| 5 | `/src/lib/export.ts` | HIGH | PENDING |
-| 5 | `/src/components/download-button.tsx` | HIGH | PENDING |
+| 4 | `/src/components/zoomable-image.tsx` | HIGH | COMPLETE |
+| 4 | `/src/components/comparison-slider.tsx` | HIGH | COMPLETE |
+| 4 | `/src/components/image-preview.tsx` | HIGH | COMPLETE |
+| 5 | `/src/lib/export.ts` | HIGH | COMPLETE |
+| 5 | `/src/components/download-button.tsx` | HIGH | COMPLETE |
 | 7 | `/src/components/theme-provider.tsx` | MEDIUM | PENDING |
 | 7 | `/src/components/theme-toggle.tsx` | MEDIUM | PENDING |
 | 9 | `/public/sw.js` | LOW | PENDING |
