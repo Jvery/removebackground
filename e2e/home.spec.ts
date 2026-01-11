@@ -4,11 +4,12 @@ test.describe('removebackground', () => {
   test('should display the main page', async ({ page }) => {
     await page.goto('/')
 
-    // Check that the title is present
-    await expect(page.locator('h1')).toContainText('removebackground')
+    // Check that the title is present (split into "remove" and "background" spans)
+    await expect(page.locator('h1')).toContainText('remove')
+    await expect(page.locator('h1')).toContainText('background')
 
     // Check that the tagline is visible
-    await expect(page.getByText('Remove backgrounds instantly')).toBeVisible()
+    await expect(page.getByText(/Remove backgrounds instantly/i)).toBeVisible()
 
     // Check that the privacy message is visible in footer
     await expect(page.locator('footer').getByText('Your images never leave your device')).toBeVisible()
@@ -42,10 +43,10 @@ test.describe('removebackground', () => {
   test('should display footer privacy information', async ({ page }) => {
     await page.goto('/')
 
-    // Check footer privacy info
-    await expect(page.getByText('100% client-side processing')).toBeVisible()
-    await expect(page.getByText('Works offline after first load')).toBeVisible()
-    await expect(page.getByText('No account required')).toBeVisible()
+    // Check footer privacy info - text is combined in one element
+    await expect(page.getByText(/100% client-side processing/i)).toBeVisible()
+    await expect(page.getByText(/Works offline after first load/i)).toBeVisible()
+    await expect(page.getByText(/No account required/i)).toBeVisible()
   })
 
   test('should have theme toggle functionality', async ({ page }) => {

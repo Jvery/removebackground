@@ -39,6 +39,7 @@ export function ComparisonSlider({
   const containerRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState(initialPosition)
   const [isDragging, setIsDragging] = useState(false)
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 })
 
   // Calculate position from client X
   const calculatePosition = useCallback((clientX: number) => {
@@ -121,10 +122,23 @@ export function ComparisonSlider({
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
 
+  // Load image to get natural dimensions for proper aspect ratio
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => {
+      setImageSize({ width: img.naturalWidth, height: img.naturalHeight })
+    }
+    img.src = originalSrc
+  }, [originalSrc])
+
+  // Calculate aspect ratio for the container
+  const aspectRatio = imageSize.height > 0 ? imageSize.width / imageSize.height : 16 / 9
+
   return (
     <div
       ref={containerRef}
       className={`relative overflow-hidden select-none ${className}`}
+      style={{ aspectRatio: aspectRatio }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -147,31 +161,28 @@ export function ComparisonSlider({
         />
       </div>
 
-      {/* Original image (clipped) */}
+      {/* Original image (clipped using clip-path) */}
       <div
-        className="absolute inset-0 overflow-hidden"
-        style={{ width: `${position}%` }}
+        className="absolute inset-0"
+        style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
       >
-        <div className="relative w-full h-full" style={{ width: `${100 / (position / 100)}%` }}>
-          <img
-            src={originalSrc}
-            alt={`${alt} - original`}
-            className="w-full h-full object-contain"
-            style={{ maxWidth: 'none', width: `${(100 / position) * 100}%` }}
-            draggable={false}
-          />
-        </div>
+        <img
+          src={originalSrc}
+          alt={`${alt} - original`}
+          className="w-full h-full object-contain"
+          draggable={false}
+        />
       </div>
 
       {/* Divider line */}
       <div
-        className="absolute top-0 bottom-0 w-1 bg-white shadow-lg cursor-ew-resize"
+        className="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_rgba(0,0,0,0.3)] cursor-ew-resize z-10"
         style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
       >
         {/* Handle */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border-2 border-gray-200">
           <svg
-            className="w-4 h-4 text-muted-foreground"
+            className="w-5 h-5 text-gray-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -187,10 +198,10 @@ export function ComparisonSlider({
       </div>
 
       {/* Labels */}
-      <div className="absolute top-4 left-4 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium">
+      <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-xs font-medium text-white shadow-lg">
         Original
       </div>
-      <div className="absolute top-4 right-4 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium">
+      <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-xs font-medium text-white shadow-lg">
         Processed
       </div>
     </div>

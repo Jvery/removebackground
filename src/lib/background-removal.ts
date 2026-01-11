@@ -3,6 +3,9 @@
  *
  * Uses @xenova/transformers with briaai/RMBG-1.4 model for client-side
  * background removal. All processing happens in the browser - no server uploads.
+ *
+ * Uses AutoModel and AutoProcessor because RMBG-1.4 requires custom model_type
+ * configuration that the pipeline API doesn't support.
  */
 
 import { detectBestBackend, type Backend } from './backend-detection'
@@ -10,9 +13,10 @@ import { detectBestBackend, type Backend } from './backend-detection'
 // Model configuration
 const MODEL_ID = 'briaai/RMBG-1.4'
 
-// Pipeline state
-let pipeline: unknown | null = null
-let pipelinePromise: Promise<unknown> | null = null
+// Model and processor state
+let model: unknown | null = null
+let processor: unknown | null = null
+let modelPromise: Promise<void> | null = null
 let currentBackend: Backend | null = null
 
 export interface RemovalOptions {
@@ -27,38 +31,53 @@ export interface RemovalResult {
   processingTimeMs: number
 }
 
-interface SegmentationSegment {
-  label?: string
-  mask?: {
-    width: number
-    height: number
-    data: number[]
-  }
+// Type for RawImage from transformers.js
+interface RawImageType {
+  width: number
+  height: number
+  resize: (width: number, height: number) => RawImageType
+  toCanvas: () => HTMLCanvasElement
+}
+
+// Type for Tensor from transformers.js
+interface TensorType {
+  data: Float32Array | Uint8Array
+  dims: number[]
+  sigmoid: () => TensorType
+  squeeze: (dim?: number) => TensorType
+  mul: (value: number) => TensorType
+  to: (dtype: string) => TensorType
+  toCanvas: () => HTMLCanvasElement
+  [index: number]: TensorType // Allow indexing
 }
 
 /**
- * Initialize the background removal pipeline
+ * Initialize the model and processor
  * Lazy loads @xenova/transformers to avoid blocking initial page load
  */
-async function initializePipeline(
+async function initializeModel(
   onProgress?: (progress: number) => void
-): Promise<unknown> {
-  // Return existing pipeline if already initialized
-  if (pipeline) {
-    return pipeline
+): Promise<void> {
+  // Return if already initialized
+  if (model && processor) {
+    return
   }
 
   // Return existing promise if initialization is in progress
-  if (pipelinePromise) {
-    return pipelinePromise
+  if (modelPromise) {
+    return modelPromise
   }
 
-  pipelinePromise = (async () => {
+  modelPromise = (async () => {
     // Detect best backend
     currentBackend = await detectBestBackend()
 
     // Dynamic import to avoid bundling transformers.js with initial page load
-    const { pipeline: createPipeline, env } = await import('@xenova/transformers')
+    const { AutoModel, AutoProcessor, env } = await import('@xenova/transformers')
+
+    // Configure environment to always use remote models from Hugging Face Hub
+    env.allowLocalModels = false
+    env.useBrowserCache = true
 
     // Configure environment based on detected backend
     if (currentBackend === 'webgpu') {
@@ -68,24 +87,43 @@ async function initializePipeline(
     // Report progress for model loading
     onProgress?.(0.1)
 
-    // Create the image segmentation pipeline
-    const pipe = await createPipeline('image-segmentation', MODEL_ID, {
+    // Load model with custom configuration for RMBG-1.4
+    const modelInstance = await AutoModel.from_pretrained(MODEL_ID, {
+      config: { model_type: 'custom' },
       progress_callback: (progress: { progress?: number; status?: string }) => {
         if (progress.progress !== undefined) {
-          // Scale progress: model loading is 10-90% of total progress
-          const scaledProgress = 0.1 + (progress.progress / 100) * 0.8
+          // Scale progress: model loading is 10-50% of total progress
+          const scaledProgress = 0.1 + (progress.progress / 100) * 0.4
           onProgress?.(scaledProgress)
         }
       },
     })
 
-    onProgress?.(0.9)
+    onProgress?.(0.5)
 
-    pipeline = pipe
-    return pipe
+    // Load processor with custom configuration for RMBG-1.4
+    const processorInstance = await AutoProcessor.from_pretrained(MODEL_ID, {
+      config: {
+        do_normalize: true,
+        do_pad: false,
+        do_rescale: true,
+        do_resize: true,
+        image_mean: [0.5, 0.5, 0.5],
+        feature_extractor_type: 'ImageFeatureExtractor',
+        image_std: [1, 1, 1],
+        resample: 2,
+        rescale_factor: 0.00392156862745098,
+        size: { width: 1024, height: 1024 },
+      },
+    })
+
+    onProgress?.(0.7)
+
+    model = modelInstance
+    processor = processorInstance
   })()
 
-  return pipelinePromise
+  return modelPromise
 }
 
 /**
@@ -103,15 +141,18 @@ export async function removeBackground(
     throw new Error('Operation aborted')
   }
 
-  // Initialize pipeline (lazy load)
-  const pipe = await initializePipeline(onProgress)
+  // Initialize model (lazy load)
+  await initializeModel(onProgress)
 
   // Check for abort after model loading
   if (signal?.aborted) {
     throw new Error('Operation aborted')
   }
 
-  // Convert input to a URL or blob URL
+  // Dynamic import for RawImage
+  const { RawImage } = await import('@xenova/transformers')
+
+  // Convert input to a URL
   let imageUrl: string
   let shouldRevokeUrl = false
 
@@ -123,32 +164,125 @@ export async function removeBackground(
   }
 
   try {
-    // Load image to get dimensions
-    const img = await loadImage(imageUrl)
-    const { width, height } = img
+    // Load image using RawImage
+    const image = await RawImage.fromURL(imageUrl) as RawImageType
 
     // Report processing start
-    onProgress?.(0.9)
+    onProgress?.(0.8)
+
+    // Process image through the processor
+    const { pixel_values } = await (processor as {
+      (image: RawImageType): Promise<{ pixel_values: TensorType }>
+    })(image)
+
+    // Check for abort after preprocessing
+    if (signal?.aborted) {
+      throw new Error('Operation aborted')
+    }
 
     // Run inference
-    const result = await (pipe as (url: string) => Promise<unknown>)(imageUrl)
+    const { output } = await (model as {
+      (input: { input: TensorType }): Promise<{ output: TensorType }>
+    })({ input: pixel_values })
 
     // Check for abort after inference
     if (signal?.aborted) {
       throw new Error('Operation aborted')
     }
 
-    // Extract mask and apply to original image
-    const outputBlob = await applyMaskToImage(img, result as SegmentationSegment[])
+    onProgress?.(0.9)
+
+    // Post-process the output
+    // RMBG-1.4 outputs a tensor directly, not a nested object
+    // Apply sigmoid to normalize, multiply by 255, and convert to uint8
+    let maskTensor = output.sigmoid().mul(255).to('uint8')
+
+    // If the tensor has a batch dimension (4D), squeeze it
+    if (maskTensor.dims && maskTensor.dims.length === 4) {
+      // Shape is [B, C, H, W], we need [C, H, W]
+      maskTensor = maskTensor.squeeze(0)
+    }
+
+    // Convert tensor to RawImage
+    const maskImage = await RawImage.fromTensor(maskTensor) as RawImageType
+
+    // Create output canvas
+    const canvas = document.createElement('canvas')
+    canvas.width = image.width
+    canvas.height = image.height
+    const ctx = canvas.getContext('2d')
+
+    if (!ctx) {
+      throw new Error('Failed to create canvas context')
+    }
+
+    // Draw original image
+    const imageCanvas = image.toCanvas()
+    ctx.drawImage(imageCanvas, 0, 0)
+
+    // Get image data
+    const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+    // Create mask canvas and resize it to match the original image dimensions
+    // Draw the mask to canvas first, then resize
+    const tempMaskCanvas = document.createElement('canvas')
+    tempMaskCanvas.width = maskImage.width
+    tempMaskCanvas.height = maskImage.height
+
+    // Put mask data on temp canvas
+    const tempMaskCtx = tempMaskCanvas.getContext('2d')
+    if (!tempMaskCtx) {
+      throw new Error('Failed to create temp mask canvas context')
+    }
+
+    // Draw the mask image to the temp canvas
+    const maskSourceCanvas = maskImage.toCanvas()
+    tempMaskCtx.drawImage(maskSourceCanvas, 0, 0)
+
+    // Now resize by drawing to a new canvas at the target size
+    const maskCanvas = document.createElement('canvas')
+    maskCanvas.width = image.width
+    maskCanvas.height = image.height
+    const maskCtx = maskCanvas.getContext('2d')
+    if (!maskCtx) {
+      throw new Error('Failed to create mask canvas context')
+    }
+    maskCtx.drawImage(tempMaskCanvas, 0, 0, image.width, image.height)
+    const maskImageData = maskCtx.getImageData(0, 0, image.width, image.height)
+
+    // Apply mask to alpha channel
+    // The mask is grayscale, so we use the red channel (R=G=B for grayscale)
+    for (let i = 0; i < pixelData.data.length; i += 4) {
+      // Use the red channel value of the mask as alpha
+      pixelData.data[i + 3] = maskImageData.data[i]
+    }
+
+    // Put modified image data back
+    ctx.putImageData(pixelData, 0, 0)
 
     onProgress?.(1.0)
 
     const processingTimeMs = performance.now() - startTime
 
+    // Convert to blob
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (b) => {
+          if (b) {
+            resolve(b)
+          } else {
+            reject(new Error('Failed to create output blob'))
+          }
+        },
+        'image/png',
+        1.0
+      )
+    })
+
     return {
-      blob: outputBlob,
-      width,
-      height,
+      blob,
+      width: image.width,
+      height: image.height,
       processingTimeMs,
     }
   } finally {
@@ -159,138 +293,20 @@ export async function removeBackground(
 }
 
 /**
- * Load an image from a URL
- */
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('Failed to load image'))
-    img.src = url
-  })
-}
-
-/**
- * Apply the segmentation mask to the original image
- */
-async function applyMaskToImage(
-  img: HTMLImageElement,
-  segmentationResult: SegmentationSegment[]
-): Promise<Blob> {
-  const { width, height } = img
-
-  // Create canvas for compositing
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-
-  if (!ctx) {
-    throw new Error('Failed to create canvas context')
-  }
-
-  // Draw original image
-  ctx.drawImage(img, 0, 0)
-
-  // Get image data
-  const imageData = ctx.getImageData(0, 0, width, height)
-
-  // Handle different segmentation result formats from Transformers.js
-  // The result is typically an array of segments
-  if (Array.isArray(segmentationResult) && segmentationResult.length > 0) {
-    // Find the foreground mask (typically labeled as "foreground" or the non-background segment)
-    const foregroundSegment = segmentationResult.find(
-      (seg) => seg.label?.toLowerCase() !== 'background'
-    ) || segmentationResult[0]
-
-    if (foregroundSegment?.mask) {
-      const mask = foregroundSegment.mask
-
-      // Create a canvas for the mask
-      const maskCanvas = document.createElement('canvas')
-      maskCanvas.width = mask.width
-      maskCanvas.height = mask.height
-      const maskCtx = maskCanvas.getContext('2d')
-
-      if (maskCtx) {
-        // Draw mask data
-        const maskImageData = maskCtx.createImageData(mask.width, mask.height)
-
-        // Convert mask data to image data
-        for (let i = 0; i < mask.data.length; i++) {
-          const alpha = mask.data[i] * 255
-          maskImageData.data[i * 4] = 255     // R
-          maskImageData.data[i * 4 + 1] = 255 // G
-          maskImageData.data[i * 4 + 2] = 255 // B
-          maskImageData.data[i * 4 + 3] = alpha // A
-        }
-
-        maskCtx.putImageData(maskImageData, 0, 0)
-
-        // Scale mask to original image size if needed
-        if (mask.width !== width || mask.height !== height) {
-          const scaledMaskCanvas = document.createElement('canvas')
-          scaledMaskCanvas.width = width
-          scaledMaskCanvas.height = height
-          const scaledMaskCtx = scaledMaskCanvas.getContext('2d')
-
-          if (scaledMaskCtx) {
-            scaledMaskCtx.drawImage(maskCanvas, 0, 0, width, height)
-            const scaledMaskData = scaledMaskCtx.getImageData(0, 0, width, height)
-
-            // Apply mask to original image
-            for (let i = 0; i < imageData.data.length; i += 4) {
-              // Use the mask's alpha channel
-              imageData.data[i + 3] = scaledMaskData.data[i + 3]
-            }
-          }
-        } else {
-          const maskData = maskCtx.getImageData(0, 0, width, height)
-
-          // Apply mask to original image
-          for (let i = 0; i < imageData.data.length; i += 4) {
-            imageData.data[i + 3] = maskData.data[i + 3]
-          }
-        }
-      }
-    }
-  }
-
-  // Put modified image data back
-  ctx.putImageData(imageData, 0, 0)
-
-  // Convert to blob
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          resolve(blob)
-        } else {
-          reject(new Error('Failed to create output blob'))
-        }
-      },
-      'image/png',
-      1.0
-    )
-  })
-}
-
-/**
  * Preload the model without processing an image
  * Useful for warming up the model before user interaction
  */
 export async function preloadModel(
   onProgress?: (progress: number) => void
 ): Promise<void> {
-  await initializePipeline(onProgress)
+  await initializeModel(onProgress)
 }
 
 /**
  * Check if the model is loaded and ready
  */
 export function isModelLoaded(): boolean {
-  return pipeline !== null
+  return model !== null && processor !== null
 }
 
 /**
@@ -304,7 +320,8 @@ export function getCurrentBackend(): Backend | null {
  * Reset the pipeline (useful for testing or when switching backends)
  */
 export function resetPipeline(): void {
-  pipeline = null
-  pipelinePromise = null
+  model = null
+  processor = null
+  modelPromise = null
   currentBackend = null
 }

@@ -3,6 +3,7 @@ import { Outfit, DM_Sans } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider, ThemeScript } from '@/components/theme-provider'
 import { PWARegister } from '@/components/pwa-register'
+import { UpdatePrompt } from '@/components/update-prompt'
 
 // Optimized font loading with Next.js
 const outfit = Outfit({
@@ -60,6 +61,7 @@ export default function RootLayout({
       </head>
       <body className={dmSans.className}>
         <PWARegister />
+        <UpdatePrompt />
         <ThemeProvider defaultTheme="system">
           {children}
         </ThemeProvider>

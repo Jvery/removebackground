@@ -134,7 +134,7 @@ function HomePage() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-12">
-        <div className="w-full max-w-4xl relative z-10">
+        <div className="w-full max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl relative z-10">
 
           {/* Upload state */}
           {appState === 'upload' && !isProcessing && (
@@ -184,7 +184,7 @@ function HomePage() {
                     processedUrl={null}
                     isProcessing={true}
                     progress={processingState.progress}
-                    className="max-w-3xl mx-auto"
+                    className="w-full mx-auto"
                   />
                 )}
 
@@ -226,7 +226,7 @@ function HomePage() {
                   <ImagePreview
                     originalUrl={processingState.originalImage.url}
                     processedUrl={processingState.processedImage.url}
-                    className="max-w-3xl mx-auto"
+                    className="w-full mx-auto"
                   />
 
                   {/* Processing time info */}

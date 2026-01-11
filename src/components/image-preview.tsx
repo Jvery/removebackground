@@ -8,7 +8,10 @@
  * - Side-by-side view
  * - Processed only view
  *
- * Integrates ZoomableImage and ComparisonSlider components.
+ * Features:
+ * - Responsive sizing (larger on bigger screens)
+ * - Natural aspect ratio preservation
+ * - No hydration errors (localStorage read in useEffect)
  */
 
 import { useState, useCallback, useEffect } from 'react'
@@ -36,25 +39,34 @@ export function ImagePreview({
   className = '',
   defaultViewMode = 'slider',
 }: ImagePreviewProps) {
-  // Load saved view mode from localStorage
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === 'undefined') return defaultViewMode
+  // Start with default, then hydrate from localStorage after mount
+  const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode)
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // Hydrate view mode from localStorage after mount (avoids hydration mismatch)
+  useEffect(() => {
     const saved = localStorage.getItem(VIEW_MODE_KEY)
     if (saved === 'slider' || saved === 'side-by-side' || saved === 'processed') {
-      return saved
+      setViewMode(saved)
     }
-    return defaultViewMode
-  })
+    setIsHydrated(true)
+  }, [])
 
   // Persist view mode to localStorage
   useEffect(() => {
-    localStorage.setItem(VIEW_MODE_KEY, viewMode)
-  }, [viewMode])
+    if (isHydrated) {
+      localStorage.setItem(VIEW_MODE_KEY, viewMode)
+    }
+  }, [viewMode, isHydrated])
 
   // Keyboard shortcut for quick toggle (Space)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.target?.toString().includes('Input')) {
+      // Don't trigger if user is typing in an input
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+      if (e.code === 'Space') {
         e.preventDefault()
         setViewMode((prev) => prev === 'slider' ? 'processed' : 'slider')
       }
@@ -71,13 +83,15 @@ export function ImagePreview({
   if (isProcessing || !processedUrl) {
     return (
       <div className={`relative ${className}`}>
-        <ZoomableImage
-          src={originalUrl}
-          alt="Original image"
-          className="w-full aspect-video"
-        />
+        <div className="w-full max-h-[70vh] lg:max-h-[75vh] xl:max-h-[80vh] flex items-center justify-center bg-muted/30 rounded-xl overflow-hidden">
+          <img
+            src={originalUrl}
+            alt="Original image"
+            className="max-w-full max-h-[70vh] lg:max-h-[75vh] xl:max-h-[80vh] w-auto h-auto object-contain"
+          />
+        </div>
         {isProcessing && (
-          <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center rounded-xl">
             <div className="text-center">
               <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-sm font-medium">Processing... {Math.round(progress * 100)}%</p>
@@ -112,55 +126,59 @@ export function ImagePreview({
         />
       </div>
 
-      {/* Preview content */}
-      <div className="flex-1 min-h-0">
+      {/* Preview content - responsive sizing */}
+      <div className="flex-1 min-h-0 w-full">
         {viewMode === 'slider' && (
-          <ComparisonSlider
-            originalSrc={originalUrl}
-            processedSrc={processedUrl}
-            className="w-full aspect-video rounded-lg"
-          />
+          <div className="w-full flex justify-center">
+            <ComparisonSlider
+              originalSrc={originalUrl}
+              processedSrc={processedUrl}
+              className="w-full max-w-full rounded-xl shadow-lg max-h-[60vh] lg:max-h-[65vh] xl:max-h-[70vh]"
+            />
+          </div>
         )}
 
         {viewMode === 'side-by-side' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <p className="absolute top-2 left-2 z-10 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium">
+            <div className="relative flex items-center justify-center bg-muted/30 rounded-xl overflow-hidden min-h-[200px] max-h-[50vh] lg:max-h-[60vh] xl:max-h-[65vh]">
+              <p className="absolute top-3 left-3 z-10 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-xs font-medium text-white">
                 Original
               </p>
-              <ZoomableImage
+              <img
                 src={originalUrl}
                 alt="Original image"
-                className="w-full aspect-video rounded-lg"
+                className="max-w-full max-h-full w-auto h-auto object-contain"
               />
             </div>
-            <div className="relative">
-              <p className="absolute top-2 left-2 z-10 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium">
+            <div className="relative flex items-center justify-center checkerboard rounded-xl overflow-hidden min-h-[200px] max-h-[50vh] lg:max-h-[60vh] xl:max-h-[65vh]">
+              <p className="absolute top-3 left-3 z-10 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-xs font-medium text-white">
                 Processed
               </p>
-              <ZoomableImage
+              <img
                 src={processedUrl}
                 alt="Processed image"
-                showCheckerboard
-                className="w-full aspect-video rounded-lg"
+                className="max-w-full max-h-full w-auto h-auto object-contain"
               />
             </div>
           </div>
         )}
 
         {viewMode === 'processed' && (
-          <ZoomableImage
-            src={processedUrl}
-            alt="Processed image with transparent background"
-            showCheckerboard
-            className="w-full aspect-video rounded-lg"
-          />
+          <div className="w-full flex justify-center">
+            <div className="relative checkerboard rounded-xl overflow-hidden max-h-[60vh] lg:max-h-[65vh] xl:max-h-[70vh] inline-flex items-center justify-center">
+              <img
+                src={processedUrl}
+                alt="Processed image with transparent background"
+                className="max-w-full max-h-[60vh] lg:max-h-[65vh] xl:max-h-[70vh] w-auto h-auto object-contain"
+              />
+            </div>
+          </div>
         )}
       </div>
 
       {/* Keyboard hint */}
       <p className="text-center text-xs text-muted-foreground">
-        Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-foreground">Space</kbd> to toggle view
+        Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-foreground font-mono">Space</kbd> to toggle view
       </p>
     </div>
   )
@@ -181,10 +199,10 @@ function ViewModeButton({ mode, currentMode, onClick, label }: ViewModeButtonPro
       type="button"
       onClick={() => onClick(mode)}
       className={`
-        px-4 py-2 text-sm font-medium rounded-lg transition-colors
+        px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
         ${isActive
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          ? 'bg-primary text-primary-foreground shadow-md'
+          : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
         }
       `}
       aria-pressed={isActive}

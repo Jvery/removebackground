@@ -9,7 +9,7 @@
  * - Uses CSS class-based theming (Tailwind's darkMode: 'class') for immediate styling
  * - Detects system preference via prefers-color-scheme media query
  * - Persists user choice in localStorage to maintain preference across sessions
- * - Handles SSR/hydration by suppressing warnings and using useEffect for client-side setup
+ * - Handles SSR/hydration by using useEffect for localStorage reads (avoids hydration mismatch)
  * - Inline script prevents flash of incorrect theme on page load
  */
 
@@ -63,35 +63,6 @@ function applyTheme(resolvedTheme: ResolvedTheme) {
   }
 }
 
-/**
- * Get initial theme from localStorage
- * Returns null if no theme is stored, so defaultTheme can be used
- */
-function getStoredTheme(): Theme | null {
-  if (typeof window === 'undefined') {
-    return null
-  }
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'light' || stored === 'dark' || stored === 'system') {
-      return stored
-    }
-  } catch {
-    // localStorage might be unavailable (private browsing, etc.)
-  }
-  return null
-}
-
-/**
- * Get system theme preference
- */
-function getSystemTheme(): ResolvedTheme {
-  if (typeof window === 'undefined') {
-    return 'light'
-  }
-  return window.matchMedia(MEDIA_QUERY).matches ? 'dark' : 'light'
-}
-
 interface ThemeProviderProps {
   children: React.ReactNode
   /** Default theme if none is stored */
@@ -105,17 +76,31 @@ export function ThemeProvider({
   defaultTheme = 'system',
   forcedTheme,
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    // On server or initial render, use default
-    if (typeof window === 'undefined') {
-      return defaultTheme
-    }
-    return getStoredTheme() || defaultTheme
-  })
+  // IMPORTANT: Always start with default values to avoid hydration mismatch
+  // The actual values from localStorage are loaded in useEffect after mount
+  const [theme, setThemeState] = useState<Theme>(defaultTheme)
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>('light')
+  const [isHydrated, setIsHydrated] = useState(false)
 
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => {
-    return getSystemTheme()
-  })
+  // Hydrate theme from localStorage after mount (avoids hydration mismatch)
+  useEffect(() => {
+    // Read stored theme
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored === 'light' || stored === 'dark' || stored === 'system') {
+        setThemeState(stored)
+      }
+    } catch {
+      // localStorage might be unavailable
+    }
+
+    // Read system preference
+    if (typeof window !== 'undefined') {
+      setSystemTheme(window.matchMedia(MEDIA_QUERY).matches ? 'dark' : 'light')
+    }
+
+    setIsHydrated(true)
+  }, [])
 
   // Resolved theme considering system preference and forced theme
   const resolvedTheme = useMemo(() => {
@@ -125,10 +110,12 @@ export function ThemeProvider({
     return getResolvedTheme(theme, systemTheme)
   }, [theme, systemTheme, forcedTheme])
 
-  // Apply theme to DOM
+  // Apply theme to DOM (only after hydration to avoid flash)
   useEffect(() => {
-    applyTheme(resolvedTheme)
-  }, [resolvedTheme])
+    if (isHydrated) {
+      applyTheme(resolvedTheme)
+    }
+  }, [resolvedTheme, isHydrated])
 
   // Listen for system theme changes
   useEffect(() => {

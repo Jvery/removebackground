@@ -11,6 +11,7 @@
  * - ARIA labels communicate state to screen readers
  * - Smooth CSS transitions at 60fps for premium feel
  * - Respects system preferences when in 'system' mode
+ * - Uses suppressHydrationWarning for dynamic aria-label to prevent hydration errors
  */
 
 import { useTheme } from './theme-provider'
@@ -25,6 +26,7 @@ interface ThemeToggleProps {
 export function ThemeToggle({ className = '', size = 20 }: ThemeToggleProps) {
   const { resolvedTheme, toggleTheme } = useTheme()
 
+  // Always render as light initially to match server, theme will update after hydration
   const isDark = resolvedTheme === 'dark'
 
   return (
@@ -43,6 +45,7 @@ export function ThemeToggle({ className = '', size = 20 }: ThemeToggleProps) {
       `}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      suppressHydrationWarning
     >
       {/* Container for icon animation */}
       <span className="relative" style={{ width: size, height: size }}>
@@ -102,8 +105,8 @@ export function ThemeToggle({ className = '', size = 20 }: ThemeToggleProps) {
         </svg>
       </span>
 
-      {/* Screen reader text */}
-      <span className="sr-only">
+      {/* Screen reader text - suppressHydrationWarning for theme-dependent content */}
+      <span className="sr-only" suppressHydrationWarning>
         {isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       </span>
     </button>
@@ -138,7 +141,7 @@ export function ThemeToggleWithLabel({ className = '' }: { className?: string })
           label="Dark"
         />
       </div>
-      <span className="text-xs text-muted-foreground/70">
+      <span className="text-xs text-muted-foreground/70" suppressHydrationWarning>
         ({resolvedTheme})
       </span>
     </div>

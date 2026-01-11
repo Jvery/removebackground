@@ -1,7 +1,10 @@
 // Service Worker for removebackground PWA
 // Caches static assets and enables offline functionality
 
-const CACHE_NAME = 'removebackground-v1';
+// INCREMENT THIS VERSION ON EACH DEPLOY TO TRIGGER UPDATE
+const SW_VERSION = '1.1.0';
+const CACHE_NAME = `removebackground-v${SW_VERSION}`;
+
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -12,23 +15,24 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
+  console.log(`[SW] Installing version ${SW_VERSION}`);
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Caching static assets');
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  // Activate immediately
-  self.skipWaiting();
+  // Don't skipWaiting() here - let the app control when to update
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log(`[SW] Activating version ${SW_VERSION}`);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => name.startsWith('removebackground-') && name !== CACHE_NAME)
           .map((name) => {
             console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
@@ -36,7 +40,7 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // Take control of all pages immediately
+  // Take control of all pages immediately after activation
   self.clients.claim();
 });
 
@@ -98,7 +102,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets - cache first with network fallback
+  // Static assets - stale-while-revalidate strategy
   if (
     request.destination === 'script' ||
     request.destination === 'style' ||
@@ -108,29 +112,19 @@ self.addEventListener('fetch', (event) => {
   ) {
     event.respondWith(
       caches.match(request).then((cached) => {
-        if (cached) {
-          // Return cached and update in background
-          fetch(request)
-            .then((response) => {
-              if (response.ok) {
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(request, response);
-                });
-              }
-            })
-            .catch(() => {});
-          return cached;
-        }
-        // Not cached, fetch and cache
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        });
+        const fetchPromise = fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, response.clone());
+              });
+            }
+            return response;
+          })
+          .catch(() => cached);
+
+        // Return cached immediately if available, otherwise wait for fetch
+        return cached || fetchPromise;
       })
     );
     return;
@@ -154,6 +148,12 @@ self.addEventListener('fetch', (event) => {
 
 // Handle messages from the main app
 self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Skip waiting and activate new version');
+    self.skipWaiting();
+  }
+
+  // Legacy support for string messages
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
   }
@@ -163,5 +163,10 @@ self.addEventListener('message', (event) => {
     caches.delete(CACHE_NAME).then(() => {
       console.log('[SW] Cache cleared');
     });
+  }
+
+  // Get version info
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: SW_VERSION });
   }
 });

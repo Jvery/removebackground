@@ -6,41 +6,64 @@ import { useEffect } from 'react'
  * PWA Service Worker Registration Component
  *
  * Registers the service worker for offline functionality and caching.
- * Only runs in production to avoid caching issues during development.
+ * Checks for updates on page focus and periodically.
  */
 export function PWARegister() {
   useEffect(() => {
-    // Only register in production
-    if (
-      typeof window === 'undefined' ||
-      !('serviceWorker' in navigator) ||
-      process.env.NODE_ENV === 'development'
-    ) {
+    // Only register in browser with service worker support
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
       return
     }
 
-    // Register service worker
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
-          console.log('[PWA] Service worker registered:', registration.scope)
+    // Skip in development to avoid caching issues
+    if (process.env.NODE_ENV === 'development') {
+      return
+    }
 
-          // Check for updates periodically
-          setInterval(() => {
+    const registerSW = async () => {
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js')
+        console.log('[PWA] Service worker registered:', registration.scope)
+
+        // Check for updates immediately
+        registration.update()
+
+        // Check for updates periodically (every 30 minutes)
+        const updateInterval = setInterval(() => {
+          registration.update()
+        }, 30 * 60 * 1000)
+
+        // Check for updates when page becomes visible
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === 'visible') {
             registration.update()
-          }, 60 * 60 * 1000) // Check every hour
-        })
-        .catch((error) => {
-          console.error('[PWA] Service worker registration failed:', error)
-        })
-    })
+          }
+        }
+        document.addEventListener('visibilitychange', handleVisibilityChange)
 
-    // Handle service worker updates
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      // New service worker activated - could prompt for refresh
-      console.log('[PWA] New service worker activated')
-    })
+        // Check for updates on online event (when coming back online)
+        const handleOnline = () => {
+          registration.update()
+        }
+        window.addEventListener('online', handleOnline)
+
+        // Cleanup
+        return () => {
+          clearInterval(updateInterval)
+          document.removeEventListener('visibilitychange', handleVisibilityChange)
+          window.removeEventListener('online', handleOnline)
+        }
+      } catch (error) {
+        console.error('[PWA] Service worker registration failed:', error)
+      }
+    }
+
+    // Register after page load
+    if (document.readyState === 'complete') {
+      registerSW()
+    } else {
+      window.addEventListener('load', registerSW)
+    }
   }, [])
 
   return null

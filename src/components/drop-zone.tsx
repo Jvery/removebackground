@@ -14,7 +14,7 @@
  * Privacy-focused messaging emphasizes client-side processing.
  */
 
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 import { useImageInput, type ImageInputState } from '@/lib/use-image-input'
 
 interface DropZoneProps {
@@ -43,17 +43,19 @@ export function DropZone({
     clearError,
   } = useImageInput()
 
-  // Notify parent when image is ready
+  // Notify parent when image is ready - using useEffect to avoid setState during render
   const prevStateRef = useRef<ImageInputState['status']>('idle')
-  if (state.status !== prevStateRef.current) {
-    prevStateRef.current = state.status
-    if (state.status === 'ready' && state.file && state.preview) {
-      onImageReady?.(state.file, state.preview)
+  useEffect(() => {
+    if (state.status !== prevStateRef.current) {
+      prevStateRef.current = state.status
+      if (state.status === 'ready' && state.file && state.preview) {
+        onImageReady?.(state.file, state.preview)
+      }
+      if (state.status === 'error' && state.error) {
+        onError?.(state.error)
+      }
     }
-    if (state.status === 'error' && state.error) {
-      onError?.(state.error)
-    }
-  }
+  }, [state.status, state.file, state.preview, state.error, onImageReady, onError])
 
   const handleClick = useCallback(() => {
     if (!disabled) {
