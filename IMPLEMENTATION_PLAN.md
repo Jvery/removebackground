@@ -1,7 +1,7 @@
 # Background Removal Web App - Implementation Plan
 
 > **Last Updated:** 2026-01-11
-> **Status:** Phase 6 Complete - Full Application Integration
+> **Status:** Phase 7 Complete - Theme System
 
 ---
 
@@ -16,7 +16,7 @@
 | 4 | Preview System | COMPLETE | 3/3 |
 | 5 | Export/Download | COMPLETE | 2/2 |
 | 6 | Integration | COMPLETE | 2/2 |
-| 7 | Theme System | NOT STARTED | 0/2 |
+| 7 | Theme System | COMPLETE | 3/3 |
 | 8 | Polish & QA | NOT STARTED | 0/3 |
 | 9 | PWA (Optional) | NOT STARTED | 0/2 |
 
@@ -392,24 +392,24 @@ type ProcessingState =
 ### 7.1 Theme Provider
 **File:** `/src/components/theme-provider.tsx`
 
-- [ ] Detect system preference (`prefers-color-scheme`)
-- [ ] Persist user preference to localStorage
-- [ ] Provide theme context
-- [ ] Handle SSR hydration
-- [ ] Add unit tests
+- [x] Detect system preference (`prefers-color-scheme`)
+- [x] Persist user preference to localStorage
+- [x] Provide theme context
+- [x] Handle SSR hydration
+- [x] Add unit tests
 
 ### 7.2 Theme Toggle
 **File:** `/src/components/theme-toggle.tsx`
 
-- [ ] Sun/Moon icon toggle
-- [ ] Smooth transition animation
-- [ ] Keyboard accessible
-- [ ] Add component tests
+- [x] Sun/Moon icon toggle
+- [x] Smooth transition animation
+- [x] Keyboard accessible
+- [x] Add component tests
 
 ### 7.3 Integrate Theme
-- [ ] Wrap app in ThemeProvider (`/src/app/layout.tsx`)
-- [ ] Add ThemeToggle to header
-- [ ] Verify dark mode styles throughout
+- [x] Wrap app in ThemeProvider (`/src/app/layout.tsx`)
+- [x] Add ThemeToggle to header
+- [x] Verify dark mode styles throughout
 
 ---
 
@@ -486,6 +486,8 @@ type ProcessingState =
 | `/src/components/image-preview.tsx` | COMPLETE | Preview container with view modes |
 | `/src/lib/export.ts` | COMPLETE | PNG/WebP export, clipboard, share API |
 | `/src/components/download-button.tsx` | COMPLETE | Format selection, quality, download UI |
+| `/src/components/theme-provider.tsx` | COMPLETE | Theme context, localStorage, system preference |
+| `/src/components/theme-toggle.tsx` | COMPLETE | Accessible theme toggle UI |
 
 ---
 
@@ -504,8 +506,8 @@ type ProcessingState =
 | 4 | `/src/components/image-preview.tsx` | HIGH | COMPLETE |
 | 5 | `/src/lib/export.ts` | HIGH | COMPLETE |
 | 5 | `/src/components/download-button.tsx` | HIGH | COMPLETE |
-| 7 | `/src/components/theme-provider.tsx` | MEDIUM | PENDING |
-| 7 | `/src/components/theme-toggle.tsx` | MEDIUM | PENDING |
+| 7 | `/src/components/theme-provider.tsx` | MEDIUM | COMPLETE |
+| 7 | `/src/components/theme-toggle.tsx` | MEDIUM | COMPLETE |
 | 9 | `/public/sw.js` | LOW | PENDING |
 | 9 | `/public/manifest.json` | LOW | PENDING |
 
@@ -515,10 +517,10 @@ type ProcessingState =
 
 After completing each phase, verify:
 
-- [x] `npm run build` succeeds (Phase 6 verified)
-- [x] `npm run test` passes (160 tests)
+- [x] `npm run build` succeeds (Phase 7 verified)
+- [x] `npm run test` passes (191 tests)
 - [x] `npm run lint` has no errors (only img warnings)
-- [x] `npm run e2e` passes (8 E2E tests on chromium)
+- [x] `npm run e2e` passes (6 E2E tests on chromium + theme tests)
 - [ ] Manual testing in browser works
 - [ ] No console errors
 

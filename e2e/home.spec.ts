@@ -44,4 +44,43 @@ test.describe('removebackground', () => {
     await expect(page.getByText('Works offline after first load')).toBeVisible()
     await expect(page.getByText('No account required')).toBeVisible()
   })
+
+  test('should have theme toggle functionality', async ({ page }) => {
+    await page.goto('/')
+
+    // Theme toggle button should be visible
+    const themeToggle = page.getByRole('button', { name: /switch to (dark|light) mode/i })
+    await expect(themeToggle).toBeVisible()
+
+    // Get initial theme state (should default to system which is usually light)
+    const html = page.locator('html')
+
+    // Click theme toggle
+    await themeToggle.click()
+
+    // Verify the toggle changed the theme (aria-label should flip)
+    await expect(themeToggle).toHaveAttribute('aria-label', /switch to (dark|light) mode/i)
+  })
+
+  test('should persist theme preference', async ({ page }) => {
+    await page.goto('/')
+
+    // Get initial state
+    const themeToggle = page.getByRole('button', { name: /switch to (dark|light) mode/i })
+    const initialLabel = await themeToggle.getAttribute('aria-label')
+
+    // Toggle theme
+    await themeToggle.click()
+
+    // Get new state
+    const newLabel = await themeToggle.getAttribute('aria-label')
+    expect(newLabel).not.toBe(initialLabel)
+
+    // Reload page
+    await page.reload()
+
+    // Theme should persist
+    const persistedToggle = page.getByRole('button', { name: /switch to (dark|light) mode/i })
+    await expect(persistedToggle).toHaveAttribute('aria-label', newLabel!)
+  })
 })

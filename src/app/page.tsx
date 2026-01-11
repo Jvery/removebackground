@@ -14,6 +14,7 @@ import { ImagePreview } from '@/components/image-preview'
 import { ProgressIndicator } from '@/components/progress-indicator'
 import { DownloadButton } from '@/components/download-button'
 import { ErrorBoundary, ErrorFallback } from '@/components/error-boundary'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { useProcessing } from '@/lib/use-processing'
 
 type AppState = 'upload' | 'processing' | 'result'
@@ -89,7 +90,12 @@ function HomePage() {
   return (
     <main className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="py-6 px-4 text-center">
+      <header className="relative py-6 px-4 text-center">
+        {/* Theme toggle in top right */}
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+
         <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
           removebackground
         </h1>
