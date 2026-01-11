@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
-
+/* Fonts loaded via next/font/google in layout.tsx for optimal performance */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -81,7 +80,7 @@
   }
 
   html {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -92,7 +91,7 @@
   }
 
   h1, h2, h3, h4, h5, h6, .font-display {
-    font-family: 'Outfit', system-ui, sans-serif;
+    font-family: var(--font-outfit), system-ui, sans-serif;
     font-weight: 600;
     letter-spacing: -0.02em;
   }
@@ -414,4 +413,28 @@
   border-left: none;
   border-top: none;
   border-bottom-right-radius: var(--radius);
+}
+
+/* Reduced motion support for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-spin {
+    animation: none !important;
+  }
+
+  .animate-pulse {
+    animation: none !important;
+  }
+
+  .animate-float {
+    animation: none !important;
+  }
 }

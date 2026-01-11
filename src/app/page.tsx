@@ -8,14 +8,16 @@
  * No images are uploaded to any server.
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useState, lazy, Suspense } from 'react'
 import { DropZone } from '@/components/drop-zone'
-import { ImagePreview } from '@/components/image-preview'
-import { ProgressIndicator } from '@/components/progress-indicator'
-import { DownloadButton } from '@/components/download-button'
 import { ErrorBoundary, ErrorFallback } from '@/components/error-boundary'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useProcessing } from '@/lib/use-processing'
+
+// Lazy load components only needed during/after processing
+const ImagePreview = lazy(() => import('@/components/image-preview'))
+const ProgressIndicator = lazy(() => import('@/components/progress-indicator'))
+const DownloadButton = lazy(() => import('@/components/download-button'))
 
 type AppState = 'upload' | 'processing' | 'result'
 
@@ -174,23 +176,25 @@ function HomePage() {
           {/* Processing state */}
           {isProcessing && (
             <div className="space-y-6 animate-scale-in">
-              {/* Show original image during processing */}
-              {processingState.originalImage && (
-                <ImagePreview
-                  originalUrl={processingState.originalImage.url}
-                  processedUrl={null}
-                  isProcessing={true}
-                  progress={processingState.progress}
-                  className="max-w-3xl mx-auto"
-                />
-              )}
+              <Suspense fallback={<LoadingSpinner />}>
+                {/* Show original image during processing */}
+                {processingState.originalImage && (
+                  <ImagePreview
+                    originalUrl={processingState.originalImage.url}
+                    processedUrl={null}
+                    isProcessing={true}
+                    progress={processingState.progress}
+                    className="max-w-3xl mx-auto"
+                  />
+                )}
 
-              {/* Progress indicator */}
-              <ProgressIndicator
-                status={processingState.status}
-                progress={processingState.progress}
-                onCancel={handleCancel}
-              />
+                {/* Progress indicator */}
+                <ProgressIndicator
+                  status={processingState.status}
+                  progress={processingState.progress}
+                  onCancel={handleCancel}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -209,7 +213,7 @@ function HomePage() {
 
               {/* Success state */}
               {hasResult && processingState.originalImage && processingState.processedImage && (
-                <>
+                <Suspense fallback={<LoadingSpinner />}>
                   {/* Success indicator - announced to screen readers */}
                   <div className="text-center animate-success" role="status" aria-live="polite">
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 text-sm font-medium">
@@ -259,7 +263,7 @@ function HomePage() {
                       <p className="text-sm text-destructive text-center font-medium">{error}</p>
                     </div>
                   )}
-                </>
+                </Suspense>
               )}
             </div>
           )}
@@ -288,6 +292,15 @@ function HomePage() {
         </div>
       </footer>
     </main>
+  )
+}
+
+// Loading spinner for Suspense fallback
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center p-8">
+      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+    </div>
   )
 }
 

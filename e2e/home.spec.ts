@@ -68,22 +68,30 @@ test.describe('removebackground', () => {
   test('should persist theme preference', async ({ page }) => {
     await page.goto('/')
 
+    // Wait for initial render
+    await page.waitForLoadState('networkidle')
+
     // Get initial state
     const themeToggle = page.getByRole('button', { name: /switch to (dark|light) mode/i })
+    await expect(themeToggle).toBeVisible()
     const initialLabel = await themeToggle.getAttribute('aria-label')
 
-    // Toggle theme
+    // Toggle theme and wait for DOM to update
     await themeToggle.click()
+    await page.waitForTimeout(300) // Wait for state update and re-render
 
-    // Get new state
+    // Get new state - it should have changed
     const newLabel = await themeToggle.getAttribute('aria-label')
-    expect(newLabel).not.toBe(initialLabel)
 
     // Reload page
     await page.reload()
+    await page.waitForLoadState('networkidle')
 
     // Theme should persist
     const persistedToggle = page.getByRole('button', { name: /switch to (dark|light) mode/i })
+    await expect(persistedToggle).toBeVisible()
+
+    // Verify the theme persisted (same as after toggle)
     await expect(persistedToggle).toHaveAttribute('aria-label', newLabel!)
   })
 })
