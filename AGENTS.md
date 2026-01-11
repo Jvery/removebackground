@@ -17,6 +17,8 @@ Run these after implementing to get immediate feedback:
 - Typecheck: `npm run typecheck` (or `npx tsc --noEmit`)
 - Lint: `npm run lint`
 - E2E: `npx playwright test` (first run: `npx playwright install`)
+  - Webkit tests require system deps: `sudo npx playwright install-deps`
+  - Skip webkit with: `npx playwright test --project=chromium --project=firefox`
 
 ## Frontend Validation
 
