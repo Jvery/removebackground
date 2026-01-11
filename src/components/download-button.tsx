@@ -99,6 +99,7 @@ export function DownloadButton({
           type="button"
           onClick={handleDownload}
           disabled={isDisabled || isExporting}
+          aria-label={isExporting ? 'Exporting image' : `Download image as ${format.toUpperCase()}`}
           className={`
             btn-primary flex-1 flex items-center justify-center gap-2
             ${isDisabled || isExporting ? 'opacity-50 cursor-not-allowed' : ''}
@@ -110,6 +111,7 @@ export function DownloadButton({
                 className="w-5 h-5 animate-spin"
                 fill="none"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <circle
                   className="opacity-25"
@@ -134,6 +136,7 @@ export function DownloadButton({
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -279,7 +282,7 @@ export function DownloadButton({
           {/* Quality slider (WebP only) */}
           {format === 'webp' && (
             <div>
-              <label className="block text-sm font-medium mb-2 text-foreground">
+              <label id="quality-label" className="block text-sm font-medium mb-2 text-foreground">
                 Quality: <span className="text-primary">{quality}%</span>
               </label>
               <input
@@ -289,6 +292,11 @@ export function DownloadButton({
                 value={quality}
                 onChange={(e) => setQuality(Number(e.target.value))}
                 className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
+                aria-labelledby="quality-label"
+                aria-valuemin={50}
+                aria-valuemax={100}
+                aria-valuenow={quality}
+                aria-valuetext={`${quality}% quality`}
               />
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
                 <span>Smaller file</span>

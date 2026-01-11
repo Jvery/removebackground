@@ -145,7 +145,7 @@ function HomePage() {
               />
 
               {error && (
-                <div className="max-w-2xl mx-auto p-4 bg-destructive/10 border border-destructive/20 rounded-xl animate-fade-in-up">
+                <div className="max-w-2xl mx-auto p-4 bg-destructive/10 border border-destructive/20 rounded-xl animate-fade-in-up" role="alert" aria-live="assertive">
                   <p className="text-sm text-destructive text-center font-medium">{error}</p>
                 </div>
               )}
@@ -210,10 +210,10 @@ function HomePage() {
               {/* Success state */}
               {hasResult && processingState.originalImage && processingState.processedImage && (
                 <>
-                  {/* Success indicator */}
-                  <div className="text-center animate-success">
+                  {/* Success indicator - announced to screen readers */}
+                  <div className="text-center animate-success" role="status" aria-live="polite">
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 text-sm font-medium">
-                      <CheckCircleIcon className="w-4 h-4" />
+                      <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
                       Background removed successfully
                     </div>
                   </div>
@@ -246,6 +246,7 @@ function HomePage() {
                     <button
                       type="button"
                       onClick={handleStartOver}
+                      aria-label="Process another image - start over with a new image"
                       className="w-full py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-muted/50"
                     >
                       Process another image
