@@ -22,6 +22,14 @@ let currentBackend: Backend | null = null
 export interface RemovalOptions {
   onProgress?: (progress: number) => void
   signal?: AbortSignal
+  /**
+   * Threshold for binarizing the mask (0-1).
+   * Values above this threshold become fully opaque (255).
+   * Values below become fully transparent (0).
+   * Default is 0.5. Use higher values for tighter foreground selection,
+   * lower values to include more of the subject.
+   */
+  threshold?: number
 }
 
 export interface RemovalResult {
@@ -35,7 +43,7 @@ export interface RemovalResult {
 interface RawImageType {
   width: number
   height: number
-  resize: (width: number, height: number) => RawImageType
+  resize: (width: number, height: number) => Promise<RawImageType>
   toCanvas: () => HTMLCanvasElement
 }
 
@@ -134,7 +142,7 @@ export async function removeBackground(
   options?: RemovalOptions
 ): Promise<RemovalResult> {
   const startTime = performance.now()
-  const { onProgress, signal } = options || {}
+  const { onProgress, signal, threshold = 0.5 } = options || {}
 
   // Check for abort before starting
   if (signal?.aborted) {
@@ -203,8 +211,8 @@ export async function removeBackground(
       maskTensor = maskTensor.squeeze(0)
     }
 
-    // Convert tensor to RawImage
-    const maskImage = await RawImage.fromTensor(maskTensor) as RawImageType
+    // Convert tensor to RawImage (cast needed due to transformers.js types)
+    const maskImage = (RawImage.fromTensor as unknown as (t: unknown) => RawImageType)(maskTensor)
 
     // Create output canvas
     const canvas = document.createElement('canvas')
@@ -250,11 +258,17 @@ export async function removeBackground(
     maskCtx.drawImage(tempMaskCanvas, 0, 0, image.width, image.height)
     const maskImageData = maskCtx.getImageData(0, 0, image.width, image.height)
 
-    // Apply mask to alpha channel
+    // Apply mask to alpha channel with thresholding
     // The mask is grayscale, so we use the red channel (R=G=B for grayscale)
+    // Threshold creates clean binary separation: fully opaque foreground, fully transparent background
+    // Invert threshold so lower slider values = stricter (remove more background)
+    const thresholdValue = (1 - threshold) * 255
     for (let i = 0; i < pixelData.data.length; i += 4) {
-      // Use the red channel value of the mask as alpha
-      pixelData.data[i + 3] = maskImageData.data[i]
+      // Get mask value and apply threshold for clean binary mask
+      const maskValue = maskImageData.data[i]
+      // If mask value is above threshold, pixel is foreground (fully opaque)
+      // Otherwise, pixel is background (fully transparent)
+      pixelData.data[i + 3] = maskValue >= thresholdValue ? 255 : 0
     }
 
     // Put modified image data back

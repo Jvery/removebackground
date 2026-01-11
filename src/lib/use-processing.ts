@@ -36,9 +36,20 @@ export interface ProcessingState {
   processingTimeMs: number | null
 }
 
+export interface ProcessingOptions {
+  /**
+   * Threshold for binarizing the mask (0-1).
+   * Values above this threshold become fully opaque.
+   * Values below become fully transparent.
+   * Default is 0.5.
+   */
+  threshold?: number
+}
+
 export interface UseProcessingReturn {
   state: ProcessingState
-  processImage: (file: File) => Promise<void>
+  processImage: (file: File, options?: ProcessingOptions) => Promise<void>
+  reprocessWithThreshold: (threshold: number) => Promise<void>
   preload: () => Promise<void>
   cancel: () => void
   reset: () => void
@@ -59,6 +70,7 @@ export function useProcessing(): UseProcessingReturn {
   const abortControllerRef = useRef<AbortController | null>(null)
   const originalUrlRef = useRef<string | null>(null)
   const processedUrlRef = useRef<string | null>(null)
+  const currentFileRef = useRef<File | null>(null)
 
   // Cleanup URLs
   const cleanupUrls = useCallback(() => {
@@ -72,7 +84,7 @@ export function useProcessing(): UseProcessingReturn {
     }
   }, [])
 
-  const processImage = useCallback(async (file: File) => {
+  const processImage = useCallback(async (file: File, options?: ProcessingOptions) => {
     // Cancel any existing processing
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
@@ -80,6 +92,9 @@ export function useProcessing(): UseProcessingReturn {
 
     // Cleanup previous URLs
     cleanupUrls()
+
+    // Store file reference for reprocessing
+    currentFileRef.current = file
 
     // Create new abort controller
     abortControllerRef.current = new AbortController()
@@ -119,6 +134,7 @@ export function useProcessing(): UseProcessingReturn {
           }
         },
         signal,
+        threshold: options?.threshold,
       })
 
       // Check if aborted
@@ -158,6 +174,85 @@ export function useProcessing(): UseProcessingReturn {
       }))
     }
   }, [cleanupUrls])
+
+  // Reprocess the current image with a new threshold
+  const reprocessWithThreshold = useCallback(async (threshold: number) => {
+    if (!currentFileRef.current) {
+      return
+    }
+
+    // Cancel any existing processing
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Cleanup only processed URL (keep original)
+    if (processedUrlRef.current) {
+      URL.revokeObjectURL(processedUrlRef.current)
+      processedUrlRef.current = null
+    }
+
+    const file = currentFileRef.current
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController()
+    const { signal } = abortControllerRef.current
+
+    // Start processing (model already loaded, so skip loading state)
+    setState((prev) => ({
+      ...prev,
+      status: 'processing',
+      progress: 0.7,
+      processedImage: null,
+      error: null,
+    }))
+
+    try {
+      const result = await removeBackground(file, {
+        onProgress: (progress) => {
+          // Only show progress for the processing phase
+          if (progress >= 0.7) {
+            setState((prev) => ({
+              ...prev,
+              progress: progress,
+            }))
+          }
+        },
+        signal,
+        threshold,
+      })
+
+      if (signal.aborted) {
+        return
+      }
+
+      const processedUrl = URL.createObjectURL(result.blob)
+      processedUrlRef.current = processedUrl
+
+      setState((prev) => ({
+        ...prev,
+        status: 'complete',
+        progress: 1,
+        processedImage: {
+          blob: result.blob,
+          url: processedUrl,
+          width: result.width,
+          height: result.height,
+        },
+        processingTimeMs: result.processingTimeMs,
+      }))
+    } catch (error) {
+      if (signal.aborted) {
+        return
+      }
+
+      setState((prev) => ({
+        ...prev,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Processing failed',
+      }))
+    }
+  }, [])
 
   const preload = useCallback(async () => {
     if (isModelLoaded()) {
@@ -222,6 +317,7 @@ export function useProcessing(): UseProcessingReturn {
   return {
     state,
     processImage,
+    reprocessWithThreshold,
     preload,
     cancel,
     reset,

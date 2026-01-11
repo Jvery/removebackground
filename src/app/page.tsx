@@ -8,7 +8,7 @@
  * No images are uploaded to any server.
  */
 
-import { useCallback, useState, lazy, Suspense } from 'react'
+import React, { useCallback, useState, useRef, lazy, Suspense } from 'react'
 import { DropZone } from '@/components/drop-zone'
 import { ErrorBoundary, ErrorFallback } from '@/components/error-boundary'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -24,10 +24,13 @@ type AppState = 'upload' | 'processing' | 'result'
 function HomePage() {
   const [appState, setAppState] = useState<AppState>('upload')
   const [error, setError] = useState<string | null>(null)
+  const [threshold, setThreshold] = useState(0.5)
+  const [isAdjusting, setIsAdjusting] = useState(false)
 
   const {
     state: processingState,
     processImage,
+    reprocessWithThreshold,
     cancel,
     reset: resetProcessing,
   } = useProcessing()
@@ -38,7 +41,7 @@ function HomePage() {
     setAppState('processing')
 
     try {
-      await processImage(file)
+      await processImage(file, { threshold })
       setAppState('result')
     } catch (err) {
       // Error is handled by useProcessing, but we need to update app state
@@ -49,7 +52,23 @@ function HomePage() {
         setAppState('result') // Show error in result view
       }
     }
-  }, [processImage])
+  }, [processImage, threshold])
+
+  // Track the latest threshold value for commit (avoids stale closure)
+  const latestThresholdRef = useRef(threshold)
+  latestThresholdRef.current = threshold
+
+  // Handle threshold slider change (just update visual, don't process)
+  const handleThresholdInput = useCallback((newThreshold: number) => {
+    setThreshold(newThreshold)
+  }, [])
+
+  // Handle threshold change complete (on mouse/touch release)
+  const handleThresholdCommit = useCallback(async () => {
+    setIsAdjusting(true)
+    await reprocessWithThreshold(latestThresholdRef.current)
+    setIsAdjusting(false)
+  }, [reprocessWithThreshold])
 
   // Handle upload errors from DropZone
   const handleUploadError = useCallback((errorMessage: string) => {
@@ -236,6 +255,43 @@ function HomePage() {
                     </p>
                   )}
 
+                  {/* Threshold adjustment slider */}
+                  <div className="max-w-md mx-auto p-4 bg-card/50 border border-border/50 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="threshold-slider" className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <AdjustIcon className="w-4 h-4 text-primary" />
+                        Edge Sensitivity
+                      </label>
+                      <span className="text-sm text-muted-foreground font-mono">
+                        {Math.round(threshold * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      id="threshold-slider"
+                      type="range"
+                      min="0.3"
+                      max="0.5"
+                      step="0.05"
+                      value={threshold}
+                      onChange={(e) => handleThresholdInput(parseFloat(e.target.value))}
+                      onMouseUp={handleThresholdCommit}
+                      onTouchEnd={handleThresholdCommit}
+                      disabled={isAdjusting}
+                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Adjust edge sensitivity threshold"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Remove more background</span>
+                      <span>Keep more subject</span>
+                    </div>
+                    {isAdjusting && (
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        Adjusting...
+                      </div>
+                    )}
+                  </div>
+
                   {/* Download and actions */}
                   <div className="max-w-md mx-auto space-y-4">
                     <DownloadButton
@@ -379,6 +435,14 @@ function ShieldCheckIcon({ className = '' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  )
+}
+
+function AdjustIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
     </svg>
   )
 }
