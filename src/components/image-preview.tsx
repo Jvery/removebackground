@@ -68,7 +68,12 @@ export function ImagePreview({
 
       if (e.code === 'Space') {
         e.preventDefault()
-        setViewMode((prev) => prev === 'slider' ? 'processed' : 'slider')
+        // Cycle through all view modes: slider → side-by-side → processed → slider
+        setViewMode((prev) => {
+          if (prev === 'slider') return 'side-by-side'
+          if (prev === 'side-by-side') return 'processed'
+          return 'slider'
+        })
       }
     }
     window.addEventListener('keydown', handleKeyDown)

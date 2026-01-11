@@ -24,7 +24,7 @@ type AppState = 'upload' | 'processing' | 'result'
 function HomePage() {
   const [appState, setAppState] = useState<AppState>('upload')
   const [error, setError] = useState<string | null>(null)
-  const [threshold, setThreshold] = useState(0.5)
+  const [threshold, setThreshold] = useState(0.4)
   const [isAdjusting, setIsAdjusting] = useState(false)
 
   const {
