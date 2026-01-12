@@ -24,7 +24,8 @@ type AppState = 'upload' | 'processing' | 'result'
 function HomePage() {
   const [appState, setAppState] = useState<AppState>('upload')
   const [error, setError] = useState<string | null>(null)
-  const [threshold, setThreshold] = useState(0.4)
+  // UI sensitivity: 0-100, maps to backend threshold: 0.3-0.5
+  const [sensitivity, setSensitivity] = useState(50)
   const [isAdjusting, setIsAdjusting] = useState(false)
 
   const {
@@ -35,13 +36,18 @@ function HomePage() {
     reset: resetProcessing,
   } = useProcessing()
 
+  // Map UI sensitivity (0-100) to backend threshold (0.3-0.5)
+  const getBackendThreshold = useCallback((uiValue: number) => {
+    return 0.3 + (uiValue / 100) * 0.2
+  }, [])
+
   // Handle image selection from DropZone
   const handleImageReady = useCallback(async (file: File) => {
     setError(null)
     setAppState('processing')
 
     try {
-      await processImage(file, { threshold })
+      await processImage(file, { threshold: getBackendThreshold(sensitivity) })
       setAppState('result')
     } catch (err) {
       // Error is handled by useProcessing, but we need to update app state
@@ -52,23 +58,23 @@ function HomePage() {
         setAppState('result') // Show error in result view
       }
     }
-  }, [processImage, threshold])
+  }, [processImage, sensitivity, getBackendThreshold])
 
-  // Track the latest threshold value for commit (avoids stale closure)
-  const latestThresholdRef = useRef(threshold)
-  latestThresholdRef.current = threshold
+  // Track the latest sensitivity value for commit (avoids stale closure)
+  const latestSensitivityRef = useRef(sensitivity)
+  latestSensitivityRef.current = sensitivity
 
-  // Handle threshold slider change (just update visual, don't process)
-  const handleThresholdInput = useCallback((newThreshold: number) => {
-    setThreshold(newThreshold)
+  // Handle sensitivity slider change (just update visual, don't process)
+  const handleSensitivityInput = useCallback((newSensitivity: number) => {
+    setSensitivity(newSensitivity)
   }, [])
 
-  // Handle threshold change complete (on mouse/touch release)
-  const handleThresholdCommit = useCallback(async () => {
+  // Handle sensitivity change complete (on mouse/touch release)
+  const handleSensitivityCommit = useCallback(async () => {
     setIsAdjusting(true)
-    await reprocessWithThreshold(latestThresholdRef.current)
+    await reprocessWithThreshold(getBackendThreshold(latestSensitivityRef.current))
     setIsAdjusting(false)
-  }, [reprocessWithThreshold])
+  }, [reprocessWithThreshold, getBackendThreshold])
 
   // Handle upload errors from DropZone
   const handleUploadError = useCallback((errorMessage: string) => {
@@ -258,27 +264,27 @@ function HomePage() {
                   {/* Threshold adjustment slider */}
                   <div className="max-w-md mx-auto p-4 bg-card/50 border border-border/50 rounded-xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <label htmlFor="threshold-slider" className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <label htmlFor="sensitivity-slider" className="text-sm font-medium text-foreground flex items-center gap-2">
                         <AdjustIcon className="w-4 h-4 text-primary" />
                         Edge Sensitivity
                       </label>
                       <span className="text-sm text-muted-foreground font-mono">
-                        {Math.round(threshold * 100)}%
+                        {sensitivity}%
                       </span>
                     </div>
                     <input
-                      id="threshold-slider"
+                      id="sensitivity-slider"
                       type="range"
-                      min="0.3"
-                      max="0.5"
-                      step="0.05"
-                      value={threshold}
-                      onChange={(e) => handleThresholdInput(parseFloat(e.target.value))}
-                      onMouseUp={handleThresholdCommit}
-                      onTouchEnd={handleThresholdCommit}
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={sensitivity}
+                      onChange={(e) => handleSensitivityInput(parseInt(e.target.value, 10))}
+                      onMouseUp={handleSensitivityCommit}
+                      onTouchEnd={handleSensitivityCommit}
                       disabled={isAdjusting}
                       className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label="Adjust edge sensitivity threshold"
+                      aria-label="Adjust edge sensitivity"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Remove more background</span>
