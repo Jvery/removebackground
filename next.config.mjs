@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable static export for fully client-side deployment
-  // output: 'export', // Uncomment for static hosting (GitHub Pages, etc.)
-  
+  // Enable static export for fully client-side deployment (Azure Static Web Apps)
+  output: 'export',
+
   // Required for @xenova/transformers WASM files
   webpack: (config) => {
     config.resolve.alias = {
@@ -13,24 +13,8 @@ const nextConfig = {
     return config
   },
 
-  // Headers for SharedArrayBuffer (required for some WASM optimizations)
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
-          },
-          {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
-          },
-        ],
-      },
-    ]
-  },
+  // Note: Headers are configured in staticwebapp.config.json for Azure Static Web Apps
+  // (COEP/COOP headers required for SharedArrayBuffer/WASM optimizations)
 }
 
 export default nextConfig

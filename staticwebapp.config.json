@@ -1,0 +1,14 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/_next/*", "/icons/*", "/*.{css,js,json,png,jpg,jpeg,gif,svg,ico,wasm,onnx}"]
+  },
+  "globalHeaders": {
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Opener-Policy": "same-origin"
+  },
+  "mimeTypes": {
+    ".wasm": "application/wasm",
+    ".onnx": "application/octet-stream"
+  }
+}
