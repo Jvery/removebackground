@@ -33,18 +33,6 @@ npm run test:e2e
 npm run build
 ```
 
-## Ralph Workflow
-
-This project uses the [Ralph methodology](https://ghuntley.com/ralph/) for autonomous development.
-
-```bash
-# Planning mode — generates/updates IMPLEMENTATION_PLAN.md
-./loop.sh plan 5
-
-# Build mode — implements from the plan
-./loop.sh 20
-```
-
 ## Tech Stack
 
 - [Next.js 14](https://nextjs.org/) — React framework
