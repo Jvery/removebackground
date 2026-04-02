@@ -1,0 +1,54 @@
+server {
+    listen       ${PORT};
+    server_name  _;
+
+    root  /usr/share/nginx/html;
+    index index.html;
+
+    # .wasm is in nginx default mime.types (nginx >= 1.21).
+    # .onnx falls back to default_type application/octet-stream (nginx default).
+
+    # IMPORTANT: nginx does NOT inherit add_header across location blocks.
+    # COEP/COOP headers must be repeated in every location that defines its own directives.
+
+    # Next.js content-hashed assets — aggressive immutable caching
+    location /_next/static/ {
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Opener-Policy   "same-origin"  always;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    # Service worker — must NOT be cached
+    location = /sw.js {
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Opener-Policy   "same-origin"  always;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Service-Worker-Allowed "/" always;
+        try_files $uri =404;
+    }
+
+    # PWA manifest
+    location = /manifest.json {
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Opener-Policy   "same-origin"  always;
+        add_header Cache-Control "public, max-age=86400" always;
+        try_files $uri =404;
+    }
+
+    # Icons
+    location /icons/ {
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Opener-Policy   "same-origin"  always;
+        add_header Cache-Control "public, max-age=604800" always;
+        try_files $uri =404;
+    }
+
+    # SPA catch-all — mirrors staticwebapp.config.json navigationFallback
+    location / {
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Opener-Policy   "same-origin"  always;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -13,8 +13,8 @@ const nextConfig = {
     return config
   },
 
-  // Note: Headers are configured in staticwebapp.config.json for Azure Static Web Apps
-  // (COEP/COOP headers required for SharedArrayBuffer/WASM optimizations)
+  // Note: COEP/COOP headers required for SharedArrayBuffer/WASM/WebGPU are set
+  // in nginx.conf.template (served via the Docker/nginx container)
 }
 
 export default nextConfig
